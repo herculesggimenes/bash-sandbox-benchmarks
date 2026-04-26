@@ -1,0 +1,332 @@
+# Company Spend Audit Benchmark Readout
+
+- Company Spend Audit Benchmark Readout
+- Fixture: 1,000 anonymized company-paid expenses and reimbursements, 70 diagnostic spend-pattern signals, 1,529 policy words.
+- All variants include web_search and submit_review. Native tool variants expose them as top-level tools, while just-bash and sandbox expose them as CLIs behind the single bash surface.
+
+## Runtime Summary
+
+| Variant | Runtime OK | Quality Pass | Judged | Judge Pass | Submitted | Judge P70 | Judge P90 | Judge P95 | Judge P99 | Token P70 | Token P90 | Token P95 | Token P99 | Total P70 (ms) | Total P90 (ms) | Total P95 (ms) | Total P99 (ms) | Working Set P70 | Working Set P90 | Working Set P95 | Working Set P99 | Host RSS P95 | Container Peak P95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| tool-compaction | 13/20 | 13/13 | 0/13 | 0/0 | 13/13 | 0.0 | 0.0 | 0.0 | 0.0 | 519174 | 725367 | 734628 | 734628 | 420281 | 438628 | 451201 | 451201 | 29.20 | 29.33 | 29.39 | 29.39 | 29.39 | - |
+
+## Notes
+
+- `tool` and `tool-compaction` include simplified `analyze_receipt`, `get_users`, `get_cases`, and calendar context tools for company-spend review.
+- `tool-compaction` uses the same native tools as `tool`, plus AI SDK `prepareStep` message pruning with a deterministic evidence checkpoint when the conversation grows large.
+- Native tool variants use the same harness shape as the Brex audit agents, including a batched `web_search` tool that calls Gemini web tools through Vertex via the LLM gateway.
+- `just-bash` and `sandbox` expose the same web-search backend as a `web_search` CLI and the same submission validator as a `submit_review` CLI behind the single bash tool.
+- `just-bash` remains pure in-memory `Bash + InMemoryFs`; /tmp is an in-memory path and does not touch the host filesystem.
+- `sandbox` remains the Docker/Moby comparator.
+- Primary memory claims should use homogeneous-batch `totalPeakWorkingSetPerRunBytes`: host-process peak RSS delta plus Docker cgroup peak memory, divided by active sessions. Per-run RSS remains a diagnostic.
+- `totalMs` excludes the synthetic warm-start probe. Raw rows also include `wallMs`, `coldStartMs`, and `warmStartMs`.
+- `Runtime OK` means the provider and runtime completed. `Quality Pass` is judge-based when judge results are attached; otherwise it is only a harness-health signal for submitted output, full-batch expense fetch/read coverage, evidence work, schema validity, and valid expense ids.
+- Exact F1 is retained only as a diagnostic against generated hidden cases. It is not the headline quality metric.
+
+## Sample Trace Slices
+
+These are real spans from one benchmark run. Each variant below is one trace. I am only showing the spans that make the runtime shape obvious.
+The local report includes benchmark span slices for the runtime-shape comparison.
+
+### `tool-compaction`
+
+- `llm.review_spend_decisions` (368921ms)
+  - attributes: { "llm.model": "claude-opus-4-5-20251101", "prompt.bytes": 428 }
+  - input: { "availableTools": [ "get_policy", "get_expenses", "get_users", "get_cases", "analyze_calendar_events", "analyze_receipt", "web_search" ], "compactContext": true, "expenseCount": 1000, "variant": "tool-compaction" }
+  - output: { "caseDecisionCount": 11, "decisionCount": 13, "decisions": [ { "evidence": [ { "reference": "receipt_3bcbb238da", "summary": "Receipt shows Staples $180 (dated April 15, supplies total) but was used for 4 different expense claims totaling $1,568.57", "type": "receipt_analysis" }, { "reference": "exp_0367, exp_0366, ...
+- `tool.get_expenses` (4ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "overview", "limit": 200, "offset": 0 }
+  - output: { "detailLevel": "overview", "expenseIds": [ "exp_0728", "exp_0203", "exp_0679", "exp_0448", "exp_0217", "exp_0987", "exp_0756", "exp_0525", "exp_0294", "exp_0063", "exp_0602", "exp_0371", "exp_0140", "exp_0070", "exp_0840", "exp_0609", "exp_0378", "exp_0147", "exp_0917", "exp_0686", "exp_0455", "exp_0224", "exp_0994"...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "overview", "limit": 200, "offset": 200 }
+  - output: { "detailLevel": "overview", "expenseIds": [ "exp_0377", "exp_0146", "exp_0916", "exp_0685", "exp_0454", "exp_0223", "exp_0384", "exp_0153", "exp_0923", "exp_0692", "exp_0461", "exp_0230", "exp_1000", "exp_0769", "exp_0042", "exp_0538", "exp_0307", "exp_0076", "exp_0846", "exp_0615", "exp_0776", "exp_0545", "exp_0314"...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "overview", "limit": 200, "offset": 400 }
+  - output: { "detailLevel": "overview", "expenseIds": [ "exp_0768", "exp_0537", "exp_0306", "exp_0075", "exp_0467", "exp_0236", "exp_0005", "exp_0775", "exp_0544", "exp_0313", "exp_0082", "exp_0852", "exp_0621", "exp_0390", "exp_0159", "exp_0929", "exp_0698", "exp_0628", "exp_0397", "exp_0166", "exp_0936", "exp_0705", "exp_0474"...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "overview", "limit": 200, "offset": 600 }
+  - output: { "detailLevel": "overview", "expenseIds": [ "exp_0143", "exp_0913", "exp_0682", "exp_0451", "exp_0220", "exp_0759", "exp_0528", "exp_0297", "exp_0066", "exp_0227", "exp_0997", "exp_0766", "exp_0535", "exp_0304", "exp_0843", "exp_0612", "exp_0381", "exp_0150", "exp_0920", "exp_0689", "exp_0458", "exp_0850", "exp_0619"...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "overview", "limit": 200, "offset": 800 }
+  - output: { "detailLevel": "overview", "expenseIds": [ "exp_0842", "exp_0436", "exp_0611", "exp_0380", "exp_0149", "exp_0310", "exp_0079", "exp_0849", "exp_0618", "exp_0387", "exp_0156", "exp_0926", "exp_0695", "exp_0233", "exp_0002", "exp_0772", "exp_0541", "exp_0933", "exp_0702", "exp_0471", "exp_0240", "exp_0009", "exp_0779"...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_3bcbb238da" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0027", "exp_0367", "exp_0366", "exp_0932" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_40ab8404f0" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_4b4d6e7e3b" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0928", "exp_0025", "exp_0193", "exp_0024" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_ec31d3f860" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0986", "exp_0082", "exp_0081", "exp_0246" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "expenseType": "expense", "merchantContains": "Apple Cash", "minAmountUsd": 100 }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0273", "exp_0287", "exp_0825", "exp_0223", "exp_0237", "exp_0321", "exp_0097", "exp_0789", "exp_0235", "exp_0319", "exp_0809", "exp_0277", "exp_0807", "exp_0275", "exp_0443", "exp_0323", "exp_0211" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "me...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Venmo" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0616", "exp_0270", "exp_0962" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matched...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "expenseType": "reimbursement", "merchantContains": "Apple Cash" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0238", "exp_0826", "exp_0818", "exp_0258", "exp_0236", "exp_0088", "exp_0220", "exp_0262", "exp_0808", "exp_0982", "exp_0296" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Soho House" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0056", "exp_0503", "exp_0950", "exp_0354", "exp_0801", "exp_0205", "exp_0652" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Nobu Downtown" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0385", "exp_0105", "exp_0272", "exp_0439", "exp_0606", "exp_0773", "exp_0940" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "userId": "user_f4c3389a" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0140", "exp_0070", "exp_0301", "exp_0308", "exp_0154", "exp_0315", "exp_0098", "exp_0413", "exp_0966", "exp_0819", "exp_0048", "exp_0300", "exp_0153", "exp_0307", "exp_0804", "exp_0103", "exp_0047", "exp_0586", "exp_0833", "exp_0971", "exp_0832", "exp_0831", "exp_0992"...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "offset": 25, "userId": "user_f4c3389a" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0306", "exp_0305", "exp_0151", "exp_0928", "exp_0025", "exp_0193", "exp_0284", "exp_0830", "exp_0298", "exp_0129", "exp_0283", "exp_0829", "exp_0304", "exp_0150", "exp_0201", "exp_0311", "exp_0200", "exp_0199", "exp_0024", "exp_0416", "exp_0821", "exp_0303", "exp_0149"...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 9 }
+  - input: { "expenseIds": [ "exp_0616", "exp_0270", "exp_0962", "exp_0097", "exp_0789", "exp_0443", "exp_0088", "exp_0982", "exp_0296" ] }
+  - output: [ { "expenseId": "exp_0616", "receiptPreview": "Venmo | Location: San Francisco, CA | Receipt #: RCPT-8039C7 | Date: 2026-04-16 16:15" }, { "expenseId": "exp_0270", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-370D67 | Date: 2026-04-14 12:41" }, { "expenseId": "exp_0962", "receipt...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 7 }
+  - input: { "expenseIds": [ "exp_0056", "exp_0503", "exp_0950", "exp_0354", "exp_0801", "exp_0205", "exp_0652" ] }
+  - output: [ { "expenseId": "exp_0056", "receiptPreview": "Receipt unavailable | Expense id: exp_0056 | Merchant claimed by submitter: Soho House | Amount: $1485.00" }, { "expenseId": "exp_0503", "receiptPreview": "Receipt unavailable | Expense id: exp_0503 | Merchant claimed by submitter: Soho House | Amount: $1705.00" }, { "ex...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0027", "exp_0367", "exp_0366", "exp_0932" ] }
+  - output: [ { "expenseId": "exp_0027", "receiptPreview": "Staples | Location: London, UK | Receipt #: RCPT-BAC5E8 | Date: 2026-04-15 09:38" }, { "expenseId": "exp_0367", "receiptPreview": "Staples | Location: London, UK | Receipt #: RCPT-BAC5E8 | Date: 2026-04-15 09:38" }, { "expenseId": "exp_0366", "receiptPreview": "Staples |...
+- `tool.submit_review` (0ms)
+  - attributes: { "tool.name": "submit_review", "tool.submission_mode": "tool_direct" }
+  - input: { "caseDecisionCount": 1, "decisionCount": 1, "decisions": [ { "evidence": [ { "reference": "exp_0027, exp_0367, exp_0366, exp_0932", "summary": "4 expenses share receipt_3bcbb238da; receipt shows $180 Staples but attached to 4 claims totaling $1,568.57", "type": "expense" }, { "reference": "receipt_3bcbb238da", "summ...
+  - output: { "accepted": false, "caseDecisionCount": 1, "decisionCount": 1, "loadError": null, "message": "not accepted; repair the submission and call submit_review again; missing 996 expense ids; first missing ids: exp_0001, exp_0002, exp_0003, exp_0004, exp_0005, exp_0006, exp_0007, exp_0008, exp_0009, exp_0010, exp_0011, exp...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ] }
+  - output: [ { "expenseId": "exp_0196", "receiptPreview": "The Smith | Location: New York, NY | Receipt #: RCPT-45DC63 | Date: 2026-04-15 14:32" }, { "expenseId": "exp_0195", "receiptPreview": "The Smith | Location: New York, NY | Receipt #: RCPT-45DC63 | Date: 2026-04-15 14:32" }, { "expenseId": "exp_0043", "receiptPreview": "T...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0928", "exp_0025", "exp_0193", "exp_0024" ] }
+  - output: [ { "expenseId": "exp_0928", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-98337A | Date: 2026-04-12 11:59" }, { "expenseId": "exp_0025", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-98337A | Date: 2026-04-12 11:59" }, { "expenseId": "exp_0193"...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0986", "exp_0082", "exp_0081", "exp_0246" ] }
+  - output: [ { "expenseId": "exp_0986", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-641784 | Date: 2026-04-13 17:20" }, { "expenseId": "exp_0082", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-641784 | Date: 2026-04-13 17:20" }, { "expenseId": "exp_0081"...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 6 }
+  - input: { "expenseIds": [ "exp_0105", "exp_0272", "exp_0439", "exp_0606", "exp_0773", "exp_0940" ] }
+  - output: [ { "expenseId": "exp_0105", "receiptPreview": "Nobu Downtown | Location: New York, NY | Receipt #: RCPT-2EB4D2 | Date: 2026-04-16 12:32" }, { "expenseId": "exp_0272", "receiptPreview": "Nobu Downtown | Location: New York, NY | Receipt #: RCPT-EB4047 | Date: 2026-04-15 18:43" }, { "expenseId": "exp_0439", "receiptPrev...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 49283, "llm.compaction.compacted_tokens_estimate": 15817, "llm.compaction.message_count": 15, "llm.compaction.compacted_message_count": 12 }
+  - output: { "compactedMessageCount": 12, "compactedTokenEstimate": 15817, "originalMessageCount": 15, "originalTokenEstimate": 49283 }
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "offset": 50, "userId": "user_f4c3389a" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0148", "exp_0302", "exp_0155" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matched...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_40ab8404f0" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_3bcbb238da" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0027", "exp_0367", "exp_0366", "exp_0932" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 51453, "llm.compaction.compacted_tokens_estimate": 11704, "llm.compaction.message_count": 17, "llm.compaction.compacted_message_count": 13 }
+  - output: { "compactedMessageCount": 13, "compactedTokenEstimate": 11704, "originalMessageCount": 17, "originalTokenEstimate": 51453 }
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_4b4d6e7e3b" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0928", "exp_0025", "exp_0193", "exp_0024" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_ec31d3f860" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0986", "exp_0082", "exp_0081", "exp_0246" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Soho House" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0056", "exp_0503", "exp_0950", "exp_0354", "exp_0801", "exp_0205", "exp_0652" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Apple Cash" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0238", "exp_0273", "exp_0287", "exp_0826", "exp_0818", "exp_0825", "exp_0223", "exp_0237", "exp_0321", "exp_0097", "exp_0258", "exp_0789", "exp_0236", "exp_0235", "exp_0319", "exp_0088", "exp_0809", "exp_0277", "exp_0220", "exp_0262", "exp_0808", "exp_0807", "exp_0275"...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 56781, "llm.compaction.compacted_tokens_estimate": 12649, "llm.compaction.message_count": 19, "llm.compaction.compacted_message_count": 14 }
+  - output: { "compactedMessageCount": 14, "compactedTokenEstimate": 12649, "originalMessageCount": 19, "originalTokenEstimate": 56781 }
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Apple Cash", "offset": 25 }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0296", "exp_0323", "exp_0211" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matched...
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Nobu" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0385", "exp_0105", "exp_0272", "exp_0439", "exp_0606", "exp_0773", "exp_0940" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Venmo" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0616", "exp_0270", "exp_0962" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matched...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 58857, "llm.compaction.compacted_tokens_estimate": 13794, "llm.compaction.message_count": 21, "llm.compaction.compacted_message_count": 14 }
+  - output: { "compactedMessageCount": 14, "compactedTokenEstimate": 13794, "originalMessageCount": 21, "originalTokenEstimate": 58857 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 7 }
+  - input: { "expenseIds": [ "exp_0056", "exp_0503", "exp_0950", "exp_0354", "exp_0801", "exp_0205", "exp_0652" ] }
+  - output: [ { "expenseId": "exp_0056", "receiptPreview": "Receipt unavailable | Expense id: exp_0056 | Merchant claimed by submitter: Soho House | Amount: $1485.00" }, { "expenseId": "exp_0503", "receiptPreview": "Receipt unavailable | Expense id: exp_0503 | Merchant claimed by submitter: Soho House | Amount: $1705.00" }, { "ex...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 3 }
+  - input: { "expenseIds": [ "exp_0616", "exp_0270", "exp_0962" ] }
+  - output: [ { "expenseId": "exp_0616", "receiptPreview": "Venmo | Location: San Francisco, CA | Receipt #: RCPT-8039C7 | Date: 2026-04-16 16:15" }, { "expenseId": "exp_0270", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-370D67 | Date: 2026-04-14 12:41" }, { "expenseId": "exp_0962", "receipt...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 60036, "llm.compaction.compacted_tokens_estimate": 13223, "llm.compaction.message_count": 23, "llm.compaction.compacted_message_count": 15 }
+  - output: { "compactedMessageCount": 15, "compactedTokenEstimate": 13223, "originalMessageCount": 23, "originalTokenEstimate": 60036 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0025", "exp_0024", "exp_0193", "exp_0928" ] }
+  - output: [ { "expenseId": "exp_0025", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-98337A | Date: 2026-04-12 11:59" }, { "expenseId": "exp_0024", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-98337A | Date: 2026-04-12 11:59" }, { "expenseId": "exp_0193"...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0027", "exp_0366", "exp_0367", "exp_0932" ] }
+  - output: [ { "expenseId": "exp_0027", "receiptPreview": "Staples | Location: London, UK | Receipt #: RCPT-BAC5E8 | Date: 2026-04-15 09:38" }, { "expenseId": "exp_0366", "receiptPreview": "Staples | Location: London, UK | Receipt #: RCPT-BAC5E8 | Date: 2026-04-15 09:38" }, { "expenseId": "exp_0367", "receiptPreview": "Staples |...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0082", "exp_0081", "exp_0986", "exp_0246" ] }
+  - output: [ { "expenseId": "exp_0082", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-641784 | Date: 2026-04-13 17:20" }, { "expenseId": "exp_0081", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-641784 | Date: 2026-04-13 17:20" }, { "expenseId": "exp_0986"...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ] }
+  - output: [ { "expenseId": "exp_0196", "receiptPreview": "The Smith | Location: New York, NY | Receipt #: RCPT-45DC63 | Date: 2026-04-15 14:32" }, { "expenseId": "exp_0195", "receiptPreview": "The Smith | Location: New York, NY | Receipt #: RCPT-45DC63 | Date: 2026-04-15 14:32" }, { "expenseId": "exp_0043", "receiptPreview": "T...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 61753, "llm.compaction.compacted_tokens_estimate": 12829, "llm.compaction.message_count": 25, "llm.compaction.compacted_message_count": 16 }
+  - output: { "compactedMessageCount": 16, "compactedTokenEstimate": 12829, "originalMessageCount": 25, "originalTokenEstimate": 61753 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 7 }
+  - input: { "expenseIds": [ "exp_0105", "exp_0272", "exp_0439", "exp_0606", "exp_0773", "exp_0940", "exp_0385" ] }
+  - output: [ { "expenseId": "exp_0105", "receiptPreview": "Nobu Downtown | Location: New York, NY | Receipt #: RCPT-2EB4D2 | Date: 2026-04-16 12:32" }, { "expenseId": "exp_0272", "receiptPreview": "Nobu Downtown | Location: New York, NY | Receipt #: RCPT-EB4047 | Date: 2026-04-15 18:43" }, { "expenseId": "exp_0439", "receiptPrev...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_40ab8404f0" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 63533, "llm.compaction.compacted_tokens_estimate": 9342, "llm.compaction.message_count": 27, "llm.compaction.compacted_message_count": 17 }
+  - output: { "compactedMessageCount": 17, "compactedTokenEstimate": 9342, "originalMessageCount": 27, "originalTokenEstimate": 63533 }
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_3bcbb238da" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0027", "exp_0367", "exp_0366", "exp_0932" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_4b4d6e7e3b" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0928", "exp_0025", "exp_0193", "exp_0024" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_ec31d3f860" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0986", "exp_0082", "exp_0081", "exp_0246" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Soho House" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0056", "exp_0503", "exp_0950", "exp_0354", "exp_0801", "exp_0205", "exp_0652" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 66713, "llm.compaction.compacted_tokens_estimate": 10443, "llm.compaction.message_count": 29, "llm.compaction.compacted_message_count": 18 }
+  - output: { "compactedMessageCount": 18, "compactedTokenEstimate": 10443, "originalMessageCount": 29, "originalTokenEstimate": 66713 }
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Apple Cash" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0238", "exp_0273", "exp_0287", "exp_0826", "exp_0818", "exp_0825", "exp_0223", "exp_0237", "exp_0321", "exp_0097", "exp_0258", "exp_0789", "exp_0236", "exp_0235", "exp_0319", "exp_0088", "exp_0809", "exp_0277", "exp_0220", "exp_0262", "exp_0808", "exp_0807", "exp_0275"...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Venmo" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0616", "exp_0270", "exp_0962" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matched...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 70305, "llm.compaction.compacted_tokens_estimate": 12933, "llm.compaction.message_count": 31, "llm.compaction.compacted_message_count": 19 }
+  - output: { "compactedMessageCount": 19, "compactedTokenEstimate": 12933, "originalMessageCount": 31, "originalTokenEstimate": 70305 }
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Apple Cash", "offset": 25 }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0296", "exp_0323", "exp_0211" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matched...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "merchantContains": "Nobu Downtown" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0385", "exp_0105", "exp_0272", "exp_0439", "exp_0606", "exp_0773", "exp_0940" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 71806, "llm.compaction.compacted_tokens_estimate": 12825, "llm.compaction.message_count": 33, "llm.compaction.compacted_message_count": 20 }
+  - output: { "compactedMessageCount": 20, "compactedTokenEstimate": 12825, "originalMessageCount": 33, "originalTokenEstimate": 71806 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0027", "exp_0367", "exp_0366", "exp_0932" ] }
+  - output: [ { "expenseId": "exp_0027", "receiptPreview": "Staples | Location: London, UK | Receipt #: RCPT-BAC5E8 | Date: 2026-04-15 09:38" }, { "expenseId": "exp_0367", "receiptPreview": "Staples | Location: London, UK | Receipt #: RCPT-BAC5E8 | Date: 2026-04-15 09:38" }, { "expenseId": "exp_0366", "receiptPreview": "Staples |...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 72500, "llm.compaction.compacted_tokens_estimate": 11799, "llm.compaction.message_count": 35, "llm.compaction.compacted_message_count": 21 }
+  - output: { "compactedMessageCount": 21, "compactedTokenEstimate": 11799, "originalMessageCount": 35, "originalTokenEstimate": 72500 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0928", "exp_0025", "exp_0193", "exp_0024" ] }
+  - output: [ { "expenseId": "exp_0928", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-98337A | Date: 2026-04-12 11:59" }, { "expenseId": "exp_0025", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-98337A | Date: 2026-04-12 11:59" }, { "expenseId": "exp_0193"...
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0986", "exp_0082", "exp_0081", "exp_0246" ] }
+  - output: [ { "expenseId": "exp_0986", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-641784 | Date: 2026-04-13 17:20" }, { "expenseId": "exp_0082", "receiptPreview": "United Airlines | Location: San Francisco, CA | Receipt #: RCPT-641784 | Date: 2026-04-13 17:20" }, { "expenseId": "exp_0081"...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 73452, "llm.compaction.compacted_tokens_estimate": 9622, "llm.compaction.message_count": 37, "llm.compaction.compacted_message_count": 22 }
+  - output: { "compactedMessageCount": 22, "compactedTokenEstimate": 9622, "originalMessageCount": 37, "originalTokenEstimate": 73452 }
+- `tool.get_expenses` (1ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_40ab8404f0" }
+  - output: { "detailLevel": "detailed", "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": ...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_6e0eac1b97" }
+  - output: { "detailLevel": "detailed", "expenseIds": [], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matchedCount": 0, "offset": 0, "returnedCou...
+- `tool.get_expenses` (0ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "detailed", "receiptFingerprint": "receipt_2d6fd6a1b5" }
+  - output: { "detailLevel": "detailed", "expenseIds": [], "fields": [ "expenseId", "expenseType", "amountUsd", "category", "merchant", "merchantType", "userId", "paymentChannel", "receiptFingerprint", "receiptStatus", "purchasedAt", "cityCode", "memo" ], "hasMore": false, "limit": 25, "matchedCount": 0, "offset": 0, "returnedCou...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 74736, "llm.compaction.compacted_tokens_estimate": 7249, "llm.compaction.message_count": 39, "llm.compaction.compacted_message_count": 23 }
+  - output: { "compactedMessageCount": 23, "compactedTokenEstimate": 7249, "originalMessageCount": 39, "originalTokenEstimate": 74736 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 4 }
+  - input: { "expenseIds": [ "exp_0196", "exp_0195", "exp_0043", "exp_0948" ] }
+  - output: [ { "expenseId": "exp_0196", "receiptPreview": "The Smith | Location: New York, NY | Receipt #: RCPT-45DC63 | Date: 2026-04-15 14:32" }, { "expenseId": "exp_0195", "receiptPreview": "The Smith | Location: New York, NY | Receipt #: RCPT-45DC63 | Date: 2026-04-15 14:32" }, { "expenseId": "exp_0043", "receiptPreview": "T...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 75154, "llm.compaction.compacted_tokens_estimate": 6199, "llm.compaction.message_count": 41, "llm.compaction.compacted_message_count": 24 }
+  - output: { "compactedMessageCount": 24, "compactedTokenEstimate": 6199, "originalMessageCount": 41, "originalTokenEstimate": 75154 }
+- `tool.get_expenses` (9ms)
+  - attributes: { "tool.name": "get_expenses" }
+  - input: { "detailLevel": "overview", "limit": 1000, "offset": 0 }
+  - output: { "detailLevel": "overview", "expenseIds": [ "exp_0728", "exp_0203", "exp_0679", "exp_0448", "exp_0217", "exp_0987", "exp_0756", "exp_0525", "exp_0294", "exp_0063", "exp_0602", "exp_0371", "exp_0140", "exp_0070", "exp_0840", "exp_0609", "exp_0378", "exp_0147", "exp_0917", "exp_0686", "exp_0455", "exp_0224", "exp_0994"...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 101679, "llm.compaction.compacted_tokens_estimate": 32300, "llm.compaction.message_count": 43, "llm.compaction.compacted_message_count": 25 }
+  - output: { "compactedMessageCount": 25, "compactedTokenEstimate": 32300, "originalMessageCount": 43, "originalTokenEstimate": 101679 }
+- `tool.analyze_receipt` (0ms)
+  - attributes: { "tool.name": "analyze_receipt", "tool.expense_count": 7 }
+  - input: { "expenseIds": [ "exp_0950", "exp_0354", "exp_0801", "exp_0056", "exp_0503", "exp_0205", "exp_0652" ] }
+  - output: [ { "expenseId": "exp_0950", "receiptPreview": "Best Buy Business | Location: Los Angeles, CA | Receipt #: RCPT-9350AD | Date: 2026-04-10 10:39" }, { "expenseId": "exp_0354", "receiptPreview": "Marriott Marquis | Location: Los Angeles, CA | Receipt #: RCPT-60CCC8 | Date: 2026-04-16 10:34" }, { "expenseId": "exp_0801",...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 102333, "llm.compaction.compacted_tokens_estimate": 32127, "llm.compaction.message_count": 45, "llm.compaction.compacted_message_count": 26 }
+  - output: { "compactedMessageCount": 26, "compactedTokenEstimate": 32127, "originalMessageCount": 45, "originalTokenEstimate": 102333 }
+- `tool.submit_review` (0ms)
+  - attributes: { "tool.name": "submit_review", "tool.submission_mode": "tool_direct" }
+  - input: { "caseDecisionCount": 11, "decisionCount": 13, "decisions": [ { "evidence": [ { "reference": "receipt_3bcbb238da", "summary": "Receipt shows Staples $180 (dated April 15, supplies total) but was used for 4 different expense claims totaling $1,568.57", "type": "receipt_analysis" }, { "reference": "exp_0367, exp_0366, ...
+  - output: { "accepted": false, "caseDecisionCount": 11, "decisionCount": 13, "loadError": null, "message": "not accepted; repair the submission and call submit_review again; missing 3 expense ids; first missing ids: exp_0121, exp_0135, exp_0674; every in-scope expense id must appear in exactly one case or no_case decision", "su...
+- `llm.context_compaction` (0ms)
+  - attributes: { "llm.compaction.original_tokens_estimate": 109437, "llm.compaction.compacted_tokens_estimate": 38083, "llm.compaction.message_count": 47, "llm.compaction.compacted_message_count": 27 }
+  - output: { "compactedMessageCount": 27, "compactedTokenEstimate": 38083, "originalMessageCount": 47, "originalTokenEstimate": 109437 }
+- `tool.submit_review` (0ms)
+  - attributes: { "tool.name": "submit_review", "tool.submission_mode": "tool_direct" }
+  - input: { "caseDecisionCount": 11, "decisionCount": 13, "decisions": [ { "evidence": [ { "reference": "receipt_3bcbb238da", "summary": "Receipt shows Staples $180 (dated April 15, supplies total) but was used for 4 different expense claims totaling $1,568.57", "type": "receipt_analysis" }, { "reference": "exp_0367, exp_0366, ...
+  - output: { "accepted": true, "caseDecisionCount": 11, "decisionCount": 13, "loadError": null, "message": "accepted", "submissionFile": null, "validation": { "caseDecisionCount": 11, "coveredExpenseCount": 1000, "duplicateExpenseIds": [], "exactlyOnceCovered": true, "fullBatchCovered": true, "invalidExpenseIds": [], "missingExp...
+

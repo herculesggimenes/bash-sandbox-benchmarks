@@ -1,0 +1,31 @@
+{
+  "name": "bash-sandbox-benchmarks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Benchmarks comparing bash-as-interface agent work against native tool and container sandbox shapes.",
+  "scripts": {
+    "analyze:fraud-review": "node scripts/analyze-fraud-review-results.mjs",
+    "analyze:spend-audit": "node scripts/analyze-fraud-review-results.mjs",
+    "benchmark:spend-audit": "node --expose-gc scripts/benchmark-expense-review-agent.mjs",
+    "benchmark:spend-audit:matrix": "node scripts/run-spend-audit-matrix.mjs",
+    "benchmark:fraud-review": "node --expose-gc scripts/benchmark-expense-review-agent.mjs",
+    "benchmark:expense-review": "node --expose-gc scripts/benchmark-expense-review-agent.mjs",
+    "benchmark:just-bash": "node --expose-gc scripts/benchmark-just-bash.mjs",
+    "benchmark:docker": "node scripts/benchmark-docker.mjs",
+    "benchmark:smoke": "node --expose-gc scripts/benchmark-just-bash.mjs --counts 1 --workload ops --warmup 0 --payload-kb 4 --tree-files 4 --concurrency all && node scripts/benchmark-docker.mjs --counts 1 --workload ops --payload-kb 4 --tree-files 4 --concurrency all",
+    "test:spend-audit": "node scripts/test-spend-audit-benchmark.mjs",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.71",
+    "@ai-sdk/google-vertex": "4.0.42",
+    "ai": "6.0.68",
+    "just-bash": "^2.14.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  },
+  "packageManager": "pnpm@8.15.9"
+}
