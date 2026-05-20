@@ -2,7 +2,7 @@
 
 Benchmarks for the article:
 
-> You don't need tools or sandboxes. All you need is bash, and I can prove it.
+> Long-running agents don't need tools or sandboxes. All they need is bash, and we can prove it.
 
 The goal is to compare agent runtime and interface shapes. The methodology is
 split into two experiment families:
