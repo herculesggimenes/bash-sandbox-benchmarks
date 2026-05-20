@@ -49,12 +49,15 @@ Options:
   --batch-size ${DEFAULT_BATCH_SIZE}
   --schedule round-robin|grouped
   --variants tool,tool-compaction,just-bash,sandbox
+  --source-dir /path/to/source-csvs
   --env-file /path/to/llm-gateway.env
   --output-dir results/spend-audit-matrix-live-r20-${timestampSlug()}
   --mock-llm
   --require-llm
   --skip-preflight
   --allow-provider-errors
+  --provider-run-retries 2
+  --no-provider-run-retries
   --export-judge-packets
   --no-export-judge-packets
   --sample
@@ -83,12 +86,14 @@ function parseArgs(argv) {
       "results",
       `spend-audit-matrix-live-r20-${timestampSlug()}`,
     ),
+    providerRunRetries: 2,
     requireLlm: false,
     runs: DEFAULT_RUNS,
     sample: false,
     schedule: "round-robin",
     sizes: DEFAULT_SIZES,
     skipPreflight: false,
+    sourceDir: "",
     variants: DEFAULT_VARIANTS,
   };
 
@@ -130,6 +135,10 @@ function parseArgs(argv) {
       options.exportJudgePackets = false;
     } else if (arg === "--output-dir") {
       options.outputDir = readValue();
+    } else if (arg === "--no-provider-run-retries") {
+      options.providerRunRetries = 0;
+    } else if (arg === "--provider-run-retries") {
+      options.providerRunRetries = parsePositiveInteger(readValue(), arg);
     } else if (arg === "--require-llm") {
       options.requireLlm = true;
     } else if (arg === "--runs") {
@@ -149,6 +158,8 @@ function parseArgs(argv) {
       sizesSpecified = true;
     } else if (arg === "--skip-preflight") {
       options.skipPreflight = true;
+    } else if (arg === "--source-dir") {
+      options.sourceDir = readValue();
     } else if (arg === "--stop-on-error") {
       options.continueOnError = false;
     } else if (arg === "--variants") {
@@ -215,6 +226,9 @@ function buildCellCommand({ cell, options }) {
     cell.outputDir,
   ];
 
+  if (options.sourceDir) {
+    args.push("--source-dir", options.sourceDir);
+  }
   if (options.envFile) {
     args.push("--env-file", options.envFile);
   }
@@ -229,6 +243,11 @@ function buildCellCommand({ cell, options }) {
   }
   if (options.allowProviderErrors) {
     args.push("--allow-provider-errors");
+  }
+  if (options.providerRunRetries === 0) {
+    args.push("--no-provider-run-retries");
+  } else {
+    args.push("--provider-run-retries", String(options.providerRunRetries));
   }
   if (options.exportJudgePackets) {
     args.push("--export-judge-packets");
@@ -303,6 +322,7 @@ async function main() {
       runs: options.runs,
       schedule: options.schedule,
       sizes: options.sizes,
+      sourceDir: options.sourceDir || null,
       variants: options.variants,
     },
     createdAt: startedAt.toISOString(),

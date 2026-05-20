@@ -1,0 +1,296 @@
+{
+  "generatedAt": "2026-05-20T20:58:44.043Z",
+  "generatedFrom": "results/spend-audit-native-tool-rerun-1000-summary-2026-05-19.json",
+  "note": "Refreshed 1000-expense native tool/tool-compaction rerun. Raw reports stay under ignored results/. Metrics are computed from runtime-completed rows; submittedCount is shown separately.",
+  "source": {
+    "haiku": {
+      "anonymized": true,
+      "sourceDir": "/tmp/spend-audit-source/Automations/audit-case-analysis",
+      "sourceFileCount": 2,
+      "weekStart": "2026-04-10"
+    },
+    "sonnet": {
+      "anonymized": true,
+      "sourceDir": "/tmp/spend-audit-source/Automations/audit-case-analysis",
+      "sourceFileCount": 2,
+      "weekStart": "2026-04-10"
+    },
+    "opus": {
+      "anonymized": true,
+      "sourceDir": "/tmp/spend-audit-source/Automations/audit-case-analysis",
+      "sourceFileCount": 2,
+      "weekStart": "2026-04-10"
+    }
+  },
+  "rows": [
+    {
+      "model": "haiku",
+      "variant": "tool",
+      "size": 1000,
+      "runCount": 20,
+      "successCount": 17,
+      "errorCount": 3,
+      "submittedCount": 15,
+      "qualityPassCount": 15,
+      "avgCompactionPasses": 0,
+      "tokenTotalP70": 781447,
+      "tokenTotalP95": 1319944,
+      "timeTotalMsP70": 285211,
+      "timeTotalMsP95": 347984,
+      "runtimeWorkingSetMiBP70": 63.5,
+      "runtimeWorkingSetMiBP95": 96.14,
+      "expensePrecisionP70": 0.366667,
+      "expensePrecisionP95": 0.506849,
+      "expenseRecallP70": 0.533333,
+      "expenseRecallP95": 0.716667,
+      "expenseF1P70": 0.434783,
+      "expenseF1P95": 0.556391,
+      "rawReportPath": "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json",
+      "publishedReadoutPath": "published-results/readouts/native-tool-rerun-size-1000.md",
+      "errors": [
+        {
+          "run": 10,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json"
+        },
+        {
+          "run": 14,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json"
+        },
+        {
+          "run": 15,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json"
+        }
+      ],
+      "rawReportPaths": [
+        "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json"
+      ]
+    },
+    {
+      "model": "haiku",
+      "variant": "tool-compaction",
+      "size": 1000,
+      "runCount": 20,
+      "successCount": 19,
+      "errorCount": 1,
+      "submittedCount": 19,
+      "qualityPassCount": 19,
+      "avgCompactionPasses": 4.789,
+      "tokenTotalP70": 611979,
+      "tokenTotalP95": 1357544,
+      "timeTotalMsP70": 284988,
+      "timeTotalMsP95": 516933,
+      "runtimeWorkingSetMiBP70": 64.58,
+      "runtimeWorkingSetMiBP95": 96.14,
+      "expensePrecisionP70": 0.451613,
+      "expensePrecisionP95": 1,
+      "expenseRecallP70": 0.516667,
+      "expenseRecallP95": 0.65,
+      "expenseF1P70": 0.459016,
+      "expenseF1P95": 0.651685,
+      "rawReportPath": "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json",
+      "publishedReadoutPath": "published-results/readouts/native-tool-rerun-size-1000.md",
+      "errors": [
+        {
+          "run": 17,
+          "errorClass": "provider_connectivity",
+          "error": "AI_APICallError: Cannot connect to API: getaddrinfo ENOTFOUND llm.staging.brexapps.io",
+          "reportPath": "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json"
+        }
+      ],
+      "rawReportPaths": [
+        "results/spend-audit-native-tool-haiku-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-19T01-03-03-896Z-60633-8a4789df.json"
+      ]
+    },
+    {
+      "model": "sonnet",
+      "variant": "tool",
+      "size": 1000,
+      "runCount": 20,
+      "successCount": 15,
+      "errorCount": 5,
+      "submittedCount": 14,
+      "qualityPassCount": 14,
+      "avgCompactionPasses": 0,
+      "tokenTotalP70": 723165,
+      "tokenTotalP95": 833173,
+      "timeTotalMsP70": 752907,
+      "timeTotalMsP95": 875306,
+      "runtimeWorkingSetMiBP70": 39.56,
+      "runtimeWorkingSetMiBP95": 40.45,
+      "expensePrecisionP70": 0.554217,
+      "expensePrecisionP95": 0.6,
+      "expenseRecallP70": 0.783333,
+      "expenseRecallP95": 0.816667,
+      "expenseF1P70": 0.641791,
+      "expenseF1P95": 0.661972,
+      "rawReportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-*/company-spend-audit-benchmark-*.json",
+      "publishedReadoutPath": "published-results/readouts/native-tool-rerun-size-1000.md",
+      "errors": [
+        {
+          "run": 2,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-02/company-spend-audit-benchmark-2026-05-19T00-07-09-152Z-28480-d3c8cf86.json"
+        },
+        {
+          "run": 8,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-08/company-spend-audit-benchmark-2026-05-19T00-24-49-410Z-42010-a4af5716.json"
+        },
+        {
+          "run": 11,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-11/company-spend-audit-benchmark-2026-05-19T00-31-36-125Z-45034-97d09ace.json"
+        },
+        {
+          "run": 13,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-13/company-spend-audit-benchmark-2026-05-19T00-38-02-288Z-48851-b539646c.json"
+        },
+        {
+          "run": 14,
+          "errorClass": "runtime_error",
+          "error": "AI_APICallError: Bad Request",
+          "reportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-14/company-spend-audit-benchmark-2026-05-19T00-38-24-513Z-49035-744645ac.json"
+        }
+      ],
+      "rawReportPaths": [
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-00/company-spend-audit-benchmark-2026-05-19T00-07-09-152Z-28471-f1df8031.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-01/company-spend-audit-benchmark-2026-05-19T00-07-09-149Z-28458-8419f13e.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-02/company-spend-audit-benchmark-2026-05-19T00-07-09-152Z-28480-d3c8cf86.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-03/company-spend-audit-benchmark-2026-05-19T00-07-09-156Z-28456-83ea58c3.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-04/company-spend-audit-benchmark-2026-05-19T00-07-09-148Z-28470-22db0c19.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-05/company-spend-audit-benchmark-2026-05-19T00-14-25-080Z-33510-e9518347.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-06/company-spend-audit-benchmark-2026-05-19T00-20-15-493Z-37332-d1a398ae.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-07/company-spend-audit-benchmark-2026-05-19T00-21-47-326Z-38437-ed421587.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-08/company-spend-audit-benchmark-2026-05-19T00-24-49-410Z-42010-a4af5716.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-09/company-spend-audit-benchmark-2026-05-19T00-26-16-534Z-42817-f3c6d08d.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-10/company-spend-audit-benchmark-2026-05-19T00-26-41-002Z-43010-59234e5a.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-11/company-spend-audit-benchmark-2026-05-19T00-31-36-125Z-45034-97d09ace.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-12/company-spend-audit-benchmark-2026-05-19T00-37-07-599Z-47249-b9fd2ffb.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-13/company-spend-audit-benchmark-2026-05-19T00-38-02-288Z-48851-b539646c.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-14/company-spend-audit-benchmark-2026-05-19T00-38-24-513Z-49035-744645ac.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-15/company-spend-audit-benchmark-2026-05-19T00-39-14-719Z-49483-69d7d901.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-16/company-spend-audit-benchmark-2026-05-19T00-43-44-351Z-51371-e79e7414.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-17/company-spend-audit-benchmark-2026-05-19T00-46-07-339Z-52419-068e9762.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-18/company-spend-audit-benchmark-2026-05-19T00-48-37-444Z-53430-69d1d612.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-19/company-spend-audit-benchmark-2026-05-19T00-50-58-395Z-54534-47e95daf.json"
+      ]
+    },
+    {
+      "model": "sonnet",
+      "variant": "tool-compaction",
+      "size": 1000,
+      "runCount": 20,
+      "successCount": 20,
+      "errorCount": 0,
+      "submittedCount": 20,
+      "qualityPassCount": 20,
+      "avgCompactionPasses": 4.05,
+      "tokenTotalP70": 655839,
+      "tokenTotalP95": 856054,
+      "timeTotalMsP70": 785430,
+      "timeTotalMsP95": 1059369,
+      "runtimeWorkingSetMiBP70": 36.98,
+      "runtimeWorkingSetMiBP95": 37.92,
+      "expensePrecisionP70": 0.556818,
+      "expensePrecisionP95": 0.61039,
+      "expenseRecallP70": 0.8,
+      "expenseRecallP95": 0.833333,
+      "expenseF1P70": 0.608,
+      "expenseF1P95": 0.662162,
+      "rawReportPath": "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-*/company-spend-audit-benchmark-*.json",
+      "publishedReadoutPath": "published-results/readouts/native-tool-rerun-size-1000.md",
+      "errors": [],
+      "rawReportPaths": [
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-00/company-spend-audit-benchmark-2026-05-19T00-07-09-152Z-28471-f1df8031.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-01/company-spend-audit-benchmark-2026-05-19T00-07-09-149Z-28458-8419f13e.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-02/company-spend-audit-benchmark-2026-05-19T00-07-09-152Z-28480-d3c8cf86.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-03/company-spend-audit-benchmark-2026-05-19T00-07-09-156Z-28456-83ea58c3.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-04/company-spend-audit-benchmark-2026-05-19T00-07-09-148Z-28470-22db0c19.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-05/company-spend-audit-benchmark-2026-05-19T00-14-25-080Z-33510-e9518347.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-06/company-spend-audit-benchmark-2026-05-19T00-20-15-493Z-37332-d1a398ae.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-07/company-spend-audit-benchmark-2026-05-19T00-21-47-326Z-38437-ed421587.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-08/company-spend-audit-benchmark-2026-05-19T00-24-49-410Z-42010-a4af5716.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-09/company-spend-audit-benchmark-2026-05-19T00-26-16-534Z-42817-f3c6d08d.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-10/company-spend-audit-benchmark-2026-05-19T00-26-41-002Z-43010-59234e5a.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-11/company-spend-audit-benchmark-2026-05-19T00-31-36-125Z-45034-97d09ace.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-12/company-spend-audit-benchmark-2026-05-19T00-37-07-599Z-47249-b9fd2ffb.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-13/company-spend-audit-benchmark-2026-05-19T00-38-02-288Z-48851-b539646c.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-14/company-spend-audit-benchmark-2026-05-19T00-38-24-513Z-49035-744645ac.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-15/company-spend-audit-benchmark-2026-05-19T00-39-14-719Z-49483-69d7d901.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-16/company-spend-audit-benchmark-2026-05-19T00-43-44-351Z-51371-e79e7414.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-17/company-spend-audit-benchmark-2026-05-19T00-46-07-339Z-52419-068e9762.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-18/company-spend-audit-benchmark-2026-05-19T00-48-37-444Z-53430-69d1d612.json",
+        "results/spend-audit-native-tool-sonnet-1000-r20-sharded-p5-2026-05-18/run-19/company-spend-audit-benchmark-2026-05-19T00-50-58-395Z-54534-47e95daf.json"
+      ]
+    },
+    {
+      "model": "opus",
+      "variant": "tool",
+      "size": 1000,
+      "runCount": 20,
+      "successCount": 20,
+      "errorCount": 0,
+      "submittedCount": 20,
+      "qualityPassCount": 20,
+      "avgCompactionPasses": 0,
+      "tokenTotalP70": 625159,
+      "tokenTotalP95": 788080,
+      "timeTotalMsP70": 414839,
+      "timeTotalMsP95": 574674,
+      "runtimeWorkingSetMiBP70": 54.66,
+      "runtimeWorkingSetMiBP95": 123.89,
+      "expensePrecisionP70": 0.529412,
+      "expensePrecisionP95": 0.590909,
+      "expenseRecallP70": 0.65,
+      "expenseRecallP95": 0.7,
+      "expenseF1P70": 0.569343,
+      "expenseF1P95": 0.619048,
+      "rawReportPath": "results/spend-audit-native-tool-opus-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-18T23-46-54-986Z-18443-3bf43547.json",
+      "publishedReadoutPath": "published-results/readouts/native-tool-rerun-size-1000.md",
+      "errors": [],
+      "rawReportPaths": [
+        "results/spend-audit-native-tool-opus-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-18T23-46-54-986Z-18443-3bf43547.json"
+      ]
+    },
+    {
+      "model": "opus",
+      "variant": "tool-compaction",
+      "size": 1000,
+      "runCount": 20,
+      "successCount": 20,
+      "errorCount": 0,
+      "submittedCount": 20,
+      "qualityPassCount": 20,
+      "avgCompactionPasses": 0.9,
+      "tokenTotalP70": 375770,
+      "tokenTotalP95": 502988,
+      "timeTotalMsP70": 408235,
+      "timeTotalMsP95": 611946,
+      "runtimeWorkingSetMiBP70": 54.39,
+      "runtimeWorkingSetMiBP95": 123.89,
+      "expensePrecisionP70": 0.578125,
+      "expensePrecisionP95": 0.597015,
+      "expenseRecallP70": 0.666667,
+      "expenseRecallP95": 0.783333,
+      "expenseF1P70": 0.596774,
+      "expenseF1P95": 0.629921,
+      "rawReportPath": "results/spend-audit-native-tool-opus-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-18T23-46-54-986Z-18443-3bf43547.json",
+      "publishedReadoutPath": "published-results/readouts/native-tool-rerun-size-1000.md",
+      "errors": [],
+      "rawReportPaths": [
+        "results/spend-audit-native-tool-opus-1000-r20-b10-2026-05-18/company-spend-audit-benchmark-2026-05-18T23-46-54-986Z-18443-3bf43547.json"
+      ]
+    }
+  ]
+}

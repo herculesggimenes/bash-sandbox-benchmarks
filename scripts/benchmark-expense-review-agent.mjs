@@ -66,6 +66,8 @@ const DEFAULT_EXPENSE_FETCH_PAGE_SIZE = 100;
 const LLM_TIMEOUT_MS = 8 * 60 * 1000;
 const PREFLIGHT_TIMEOUT_MS = 30 * 1000;
 const PROVIDER_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
+const DEFAULT_PROVIDER_RUN_RETRIES = 2;
+const PROVIDER_RUN_RETRY_DELAYS_MS = [15_000, 45_000];
 const SUBMISSION_REPAIR_ID_SAMPLE_LIMIT = 80;
 const NATIVE_FORCE_SUBMIT_MIN_EVIDENCE_SPANS = 6;
 const TOOL_COMPACTION_TOKEN_THRESHOLD = 80_000;
@@ -86,8 +88,12 @@ const SPEND_PATTERN_KINDS = [
 let cachedGatewayProvider = null;
 let cachedGatewayProviderKey = null;
 
+function isToolCompactionVariant(variant) {
+  return variant === "tool-compaction";
+}
+
 function isNativeToolVariant(variant) {
-  return variant === "tool" || variant === "tool-compaction";
+  return variant === "tool" || isToolCompactionVariant(variant);
 }
 
 function resolveModelId(model) {
@@ -474,6 +480,9 @@ Options:
   --require-llm
   --skip-preflight
   --allow-provider-errors
+  --provider-run-retries ${DEFAULT_PROVIDER_RUN_RETRIES}
+  --no-provider-run-retries
+  --only-runs 3,18,19
   --export-judge-packets
   --judge-results /path/to/judge-results.jsonl
   --judge-provider codex55
@@ -501,6 +510,8 @@ function parseArgs(argv) {
     modelAlias: "haiku",
     modelInput: "haiku",
     outputDir: "results",
+    onlyRuns: null,
+    providerRunRetries: DEFAULT_PROVIDER_RUN_RETRIES,
     qualityPassThreshold: JUDGE_RUBRIC.passThreshold,
     requireLlm: false,
     runs: 3,
@@ -545,6 +556,12 @@ function parseArgs(argv) {
       options.modelInput = options.model;
     } else if (arg === "--output-dir") {
       options.outputDir = readValue();
+    } else if (arg === "--only-runs") {
+      options.onlyRuns = parseRunIndexes(readValue());
+    } else if (arg === "--no-provider-run-retries") {
+      options.providerRunRetries = 0;
+    } else if (arg === "--provider-run-retries") {
+      options.providerRunRetries = parsePositiveInteger(readValue(), arg);
     } else if (arg === "--quality-pass-threshold") {
       const value = Number(readValue());
       if (!Number.isFinite(value) || value < 0 || value > 100) {
@@ -591,6 +608,26 @@ function parseArgs(argv) {
   options.modelAlias = inferModelAlias(options.modelInput, options.model);
 
   return options;
+}
+
+function parseRunIndexes(value) {
+  const indexes = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const runIndex = Number(part);
+      if (!Number.isInteger(runIndex) || runIndex < 0) {
+        throw new Error(
+          "--only-runs must be a comma-separated list of run indexes >= 0",
+        );
+      }
+      return runIndex;
+    });
+  if (indexes.length === 0) {
+    throw new Error("--only-runs must include at least one run index");
+  }
+  return [...new Set(indexes)].sort((a, b) => a - b);
 }
 
 async function loadEnvFile(filePath) {
@@ -2307,7 +2344,7 @@ function buildReviewerAgentPrompt({
       `Required native flow: fetch the full expense batch through get_expenses with detailLevel "overview", choosing limit and offset values that keep your context manageable until all ${expenseCount} expenses are covered. Use overview for full-batch grouping and counts; call get_expenses with detailLevel "detailed" only for selected expense ids or narrow filters that need every field. Then do the spend triage yourself: group shared receipt fingerprints, cash-equivalent spend, procurement issues, travel/lodging, receipts, memos, and reimbursement-vs-company-paid overlap. Inspect representative receipts before calling submit_review.`,
       "Before submitting, prune every candidate group. Do not include an expense id in a case merely because it shares a merchant, category, receipt-like pattern, or threshold condition. Include it only when the expense metadata, receipt text, policy, or context makes the reviewer action concrete.",
     );
-    if (runtimeVariant === "tool-compaction") {
+    if (isToolCompactionVariant(runtimeVariant)) {
       lines.push(
         "This native tool run has conversation compaction enabled. Older tool results may be summarized between steps; if a summarized fact is not specific enough for a final case, refetch the selected expense or receipt before citing it.",
       );
@@ -3582,6 +3619,7 @@ async function buildToolCompactionStepOverride({
 }
 
 async function callReviewerLlm({
+  agentTimeoutMs = LLM_TIMEOUT_MS,
   compactContext = false,
   fixture,
   mockOutput,
@@ -3598,6 +3636,7 @@ async function callReviewerLlm({
   return recorder.span(
     "llm.review_spend_decisions",
     {
+      "llm.agent_timeout_ms": agentTimeoutMs ?? "none",
       "llm.model": options.model,
       "llm.mock": options.mockLlm,
       "prompt.bytes": Buffer.byteLength(prompt),
@@ -3665,7 +3704,10 @@ async function callReviewerLlm({
         label: "review_spend_decisions",
         operation: async () =>
           generateText({
-            abortSignal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+            abortSignal:
+              agentTimeoutMs === null
+                ? undefined
+                : AbortSignal.timeout(agentTimeoutMs),
             model: createGatewayProvider()(options.model),
             stopWhen: [
               stepCountIs(MAX_REVIEW_AGENT_STEPS),
@@ -4409,6 +4451,7 @@ async function runToolVariant({
           })
         : { usage: zeroUsage(), webSearchMs: 0 };
       const llmResult = await callReviewerLlm({
+        agentTimeoutMs: null,
         compactContext,
         fixture,
         mockOutput: buildReviewSubmissionDraft(
@@ -4434,6 +4477,7 @@ async function runToolVariant({
       });
       return {
         ...llmResult,
+        agentTimeoutMs: null,
         coldStartMs: 0,
         warmStartMs: 0,
         webSearchMs: dryWork.webSearchMs,
@@ -5535,6 +5579,10 @@ async function runVariant({
     errorClass: error ? classifyError(error) : undefined,
     evaluation: result?.evaluation ?? undefined,
     expenseFetchCoverage: result?.expenseFetchCoverage ?? undefined,
+    agentTimeoutMs:
+      result && Object.hasOwn(result, "agentTimeoutMs")
+        ? result.agentTimeoutMs
+        : LLM_TIMEOUT_MS,
     llmMs: result?.llmMs ?? totalMs,
     output: result?.output ?? null,
     outputValidation: result?.outputValidation ?? undefined,
@@ -6591,6 +6639,54 @@ function isProviderErrorResult(result) {
   );
 }
 
+async function runVariantWithProviderRunRetries({
+  fixture,
+  options,
+  run,
+  runId,
+  sessionId,
+  traceController,
+  variant,
+}) {
+  const providerRunRetryErrors = [];
+  for (let attempt = 0; ; attempt++) {
+    const result = await runVariant({
+      fixture,
+      options,
+      run,
+      runId,
+      sessionId,
+      traceController,
+      variant,
+    });
+    if (
+      !isProviderErrorResult(result) ||
+      attempt >= options.providerRunRetries
+    ) {
+      result.providerRunRetryAttempts = attempt;
+      if (providerRunRetryErrors.length > 0) {
+        result.providerRunRetryErrors = providerRunRetryErrors;
+      }
+      return result;
+    }
+
+    const delayMs =
+      PROVIDER_RUN_RETRY_DELAYS_MS[
+        Math.min(attempt, PROVIDER_RUN_RETRY_DELAYS_MS.length - 1)
+      ];
+    providerRunRetryErrors.push({
+      attempt: attempt + 1,
+      delayMs,
+      error: summarizeError(result.error),
+      errorClass: result.errorClass,
+    });
+    console.error(
+      `Retrying ${variant}#${run} after provider error ${result.errorClass}; attempt ${attempt + 1}/${options.providerRunRetries}, delay=${delayMs}ms`,
+    );
+    await sleep(delayMs);
+  }
+}
+
 function printTraceRefs(traceRefs) {
   if (traceRefs.length === 0) {
     return;
@@ -6605,8 +6701,10 @@ function printTraceRefs(traceRefs) {
 
 function buildScheduledTasks(options) {
   const tasks = [];
+  const runIndexes =
+    options.onlyRuns ?? Array.from({ length: options.runs }, (_, run) => run);
   if (options.schedule === "round-robin") {
-    for (let run = 0; run < options.runs; run++) {
+    for (const run of runIndexes) {
       for (const variant of options.variants) {
         tasks.push({ run, variant });
       }
@@ -6614,7 +6712,7 @@ function buildScheduledTasks(options) {
     return tasks;
   }
   for (const variant of options.variants) {
-    for (let run = 0; run < options.runs; run++) {
+    for (const run of runIndexes) {
       tasks.push({ run, variant });
     }
   }
@@ -6826,7 +6924,9 @@ function buildReport({
       providerErrorPolicy: options.allowProviderErrors
         ? "record"
         : "abort_after_checkpoint",
+      providerRunRetries: options.providerRunRetries,
       runs: options.runs,
+      onlyRuns: options.onlyRuns ?? [],
       schedule: options.schedule,
       variants: options.variants,
       weekStart: options.weekStart,
@@ -6880,8 +6980,14 @@ function buildMarkdownReport(report) {
     "",
     `## Notes`,
     "",
+    ...(report.config.providerRunRetries > 0
+      ? [
+          `- Provider-connectivity failures are retried at the full-run level up to ${report.config.providerRunRetries} time${report.config.providerRunRetries === 1 ? "" : "s"} before counting as benchmark failures.`,
+        ]
+      : []),
     `- \`tool\` and \`tool-compaction\` include simplified \`analyze_receipt\`, \`get_users\`, \`get_cases\`, and calendar context tools for company-spend review.`,
     `- \`tool-compaction\` uses the same native tools as \`tool\`, plus AI SDK \`prepareStep\` message pruning with a deterministic evidence checkpoint when the conversation grows large.`,
+    `- Native tool variants remove the agent-level ${Math.round(LLM_TIMEOUT_MS / 60000)} minute abort while keeping the same model step cap and provider/web-search behavior.`,
     `- Native tool variants use the same harness shape as the Brex audit agents, including a batched \`web_search\` tool that calls Gemini web tools through Vertex via the LLM gateway.`,
     `- \`just-bash\` and \`sandbox\` expose the same web-search backend as a \`web_search\` CLI and the same submission validator as a \`submit_review\` CLI behind the single bash tool.`,
     `- \`just-bash\` remains pure in-memory \`Bash + InMemoryFs\`; /tmp is an in-memory path and does not touch the host filesystem.`,
@@ -6945,7 +7051,7 @@ async function main() {
     batchPeakTracker.start();
     const batchResults = await Promise.all(
       batch.map((task) =>
-        runVariant({
+        runVariantWithProviderRunRetries({
           fixture,
           options,
           run: task.run,
