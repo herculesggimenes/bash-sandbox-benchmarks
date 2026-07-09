@@ -8,8 +8,22 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { fileURLToPath } from "node:url";
 import { Bash, InMemoryFs, defineCommand } from "just-bash";
 import { z } from "zod";
+import {
+  queryExpenses as queryCanonicalExpenses,
+  summarizeExpenseQueryResult as summarizeCanonicalExpenseQueryResult,
+} from "../src/workloads/spend-audit/domain/expense-query.mjs";
+import {
+  collectDecisionExpenseIds as collectCanonicalDecisionExpenseIds,
+  reviewOutputSchema as canonicalReviewOutputSchema,
+  validateSubmittedOutput as validateCanonicalSubmittedOutput,
+} from "../src/workloads/spend-audit/domain/submission.mjs";
+import {
+  createSpendAuditWorkspace,
+  describeSpendAuditWorkbench,
+} from "../src/workloads/spend-audit/surface/manifest.mjs";
 import {
   createPeakTracker,
   forceGc,
@@ -28,8 +42,11 @@ import {
 } from "./spend-audit-judge.mjs";
 
 const TASK_ID = "weekly-company-spend-audit";
-const DEFAULT_SOURCE_DIR =
-  "/Users/hgimenes/Documents/Notes/Automations/audit-case-analysis";
+const REPO_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const DEFAULT_SOURCE_DIR = path.join(REPO_ROOT, "fixtures", "spend-audit");
 const DEFAULT_WEEK_START = "2026-04-10";
 const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
 const MODEL_ALIASES = Object.freeze({
@@ -68,7 +85,6 @@ const PREFLIGHT_TIMEOUT_MS = 30 * 1000;
 const PROVIDER_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
 const DEFAULT_PROVIDER_RUN_RETRIES = 2;
 const PROVIDER_RUN_RETRY_DELAYS_MS = [15_000, 45_000];
-const SUBMISSION_REPAIR_ID_SAMPLE_LIMIT = 80;
 const NATIVE_FORCE_SUBMIT_MIN_EVIDENCE_SPANS = 6;
 const TOOL_COMPACTION_TOKEN_THRESHOLD = 80_000;
 const TOOL_COMPACTION_RECENT_MESSAGE_WINDOW = 8;
@@ -2064,251 +2080,9 @@ function buildReviewPrompt({ packet, policy, variant, webContext = "" }) {
   return sections.join("\n");
 }
 
-function projectExpenseForTool(expense) {
-  return {
-    amountUsd: expense.amountUsd,
-    category: expense.category,
-    cityCode: expense.cityCode,
-    expenseId: expense.expenseId,
-    expenseType: expense.expenseType,
-    memo: expense.memo,
-    merchant: expense.merchant,
-    merchantType: expense.merchantType,
-    paymentChannel: expense.paymentChannel,
-    purchasedAt: expense.purchasedAt,
-    receiptFingerprint: expense.receiptFingerprint,
-    receiptStatus: expense.receiptStatus,
-    userId: expense.userId,
-  };
-}
-
-function projectExpenseOverviewForTool(expense) {
-  return [
-    expense.expenseId,
-    expense.expenseType,
-    expense.amountUsd,
-    expense.category,
-    expense.merchant,
-    expense.userId,
-    expense.receiptFingerprint,
-    expense.receiptStatus,
-  ];
-}
-
-function countRowsBy(rows, keyFn) {
-  const counts = new Map();
-  for (const row of rows) {
-    const key = keyFn(row) ?? "unknown";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return Object.fromEntries([...counts.entries()].sort());
-}
-
-function amountRowsBy(rows, keyFn) {
-  const amounts = new Map();
-  for (const row of rows) {
-    const key = keyFn(row) ?? "unknown";
-    amounts.set(key, (amounts.get(key) ?? 0) + row.amountUsd);
-  }
-  return Object.fromEntries(
-    [...amounts.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, amount]) => [key, Number(amount.toFixed(2))]),
-  );
-}
-
-function topRowsByCount(rows, keyFn, limit = 8) {
-  const counts = countRowsBy(rows, keyFn);
-  return Object.entries(counts)
-    .sort(
-      (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
-    )
-    .slice(0, limit)
-    .map(([key, count]) => ({ count, key }));
-}
-
-function buildExpenseQuerySummary(rows, page) {
-  const duplicateReceiptFingerprints = Object.entries(
-    countRowsBy(rows, (expense) => expense.receiptFingerprint),
-  )
-    .filter(([, count]) => count > 1)
-    .sort(
-      (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
-    )
-    .slice(0, 12)
-    .map(([receiptFingerprint, count]) => ({ count, receiptFingerprint }));
-
-  return {
-    amountByCategory: amountRowsBy(rows, (expense) => expense.category),
-    amountByExpenseType: amountRowsBy(rows, (expense) => expense.expenseType),
-    amountReviewedUsd: Number(
-      rows.reduce((sum, expense) => sum + expense.amountUsd, 0).toFixed(2),
-    ),
-    countsByCategory: countRowsBy(rows, (expense) => expense.category),
-    countsByExpenseType: countRowsBy(rows, (expense) => expense.expenseType),
-    countsByReceiptStatus: countRowsBy(
-      rows,
-      (expense) => expense.receiptStatus,
-    ),
-    duplicateReceiptFingerprints,
-    merchantCount: new Set(rows.map((expense) => expense.merchant)).size,
-    sampleExpenseIds: page.slice(0, 5).map((expense) => expense.expenseId),
-    topMerchants: topRowsByCount(rows, (expense) => expense.merchant),
-    topUsers: topRowsByCount(rows, (expense) => expense.userId),
-    userCount: new Set(rows.map((expense) => expense.userId)).size,
-  };
-}
-
-function queryExpenses(expenses, query = {}) {
-  let rows = [...expenses];
-  const detailLevel = query.detailLevel ?? "overview";
-
-  if (query.expenseIds?.length) {
-    const wanted = new Set(query.expenseIds);
-    rows = rows.filter((expense) => wanted.has(expense.expenseId));
-  }
-  if (query.expenseType) {
-    rows = rows.filter((expense) => expense.expenseType === query.expenseType);
-  }
-  if (query.merchantContains) {
-    const pattern = query.merchantContains.toLowerCase();
-    rows = rows.filter((expense) =>
-      expense.merchant.toLowerCase().includes(pattern),
-    );
-  }
-  if (query.userId) {
-    rows = rows.filter((expense) => expense.userId === query.userId);
-  }
-  if (query.receiptFingerprint) {
-    rows = rows.filter(
-      (expense) => expense.receiptFingerprint === query.receiptFingerprint,
-    );
-  }
-  if (query.minAmountUsd !== undefined) {
-    rows = rows.filter((expense) => expense.amountUsd >= query.minAmountUsd);
-  }
-  if (query.maxAmountUsd !== undefined) {
-    rows = rows.filter((expense) => expense.amountUsd <= query.maxAmountUsd);
-  }
-  if (query.purchasedAtStart) {
-    rows = rows.filter(
-      (expense) => expense.purchasedAt >= query.purchasedAtStart,
-    );
-  }
-  if (query.purchasedAtEnd) {
-    rows = rows.filter(
-      (expense) => expense.purchasedAt <= query.purchasedAtEnd,
-    );
-  }
-
-  if (query.sortBy === "amount_desc") {
-    rows.sort((left, right) => right.amountUsd - left.amountUsd);
-  } else {
-    rows.sort((left, right) =>
-      right.purchasedAt.localeCompare(left.purchasedAt),
-    );
-  }
-
-  const totalCount = rows.length;
-  const offset = Math.max(0, query.offset ?? 0);
-  const limit = Math.max(1, query.limit ?? 25);
-  const page = rows.slice(offset, offset + limit);
-  const expenseIds = page.map((expense) => expense.expenseId);
-  const base = {
-    detailLevel,
-    hasMore: offset + page.length < totalCount,
-    limit,
-    matchedCount: totalCount,
-    offset,
-    returnedCount: page.length,
-    summary:
-      offset === 0
-        ? buildExpenseQuerySummary(rows, page)
-        : {
-            aggregateSummaryIncludedOnOffset: 0,
-            sampleExpenseIds: page
-              .slice(0, 5)
-              .map((expense) => expense.expenseId),
-          },
-  };
-
-  if (detailLevel === "detailed") {
-    return {
-      ...base,
-      expenseIds,
-      expenses: page.map(projectExpenseForTool),
-      fields: [
-        "expenseId",
-        "expenseType",
-        "amountUsd",
-        "category",
-        "merchant",
-        "merchantType",
-        "userId",
-        "paymentChannel",
-        "receiptFingerprint",
-        "receiptStatus",
-        "purchasedAt",
-        "cityCode",
-        "memo",
-      ],
-    };
-  }
-
-  return {
-    ...base,
-    overview: {
-      fields: [
-        "id",
-        "type",
-        "usd",
-        "cat",
-        "merchant",
-        "user",
-        "receiptFp",
-        "receipt",
-      ],
-      items: page.map(projectExpenseOverviewForTool),
-      rowFormat:
-        "array values correspond to fields by position to keep model context compact; id values are exact expense ids",
-    },
-  };
-}
-
-function expenseIdsFromExpenseQueryResult(result) {
-  return (
-    result.expenseIds ??
-    result.expenses?.map((expense) => expense.expenseId) ??
-    result.overview?.items?.map((expense) =>
-      Array.isArray(expense) ? expense[0] : expense.expenseId,
-    ) ??
-    []
-  );
-}
-
-function summarizeExpenseQueryResult(result) {
-  return {
-    detailLevel: result.detailLevel,
-    expenseIds: expenseIdsFromExpenseQueryResult(result),
-    fields:
-      result.detailLevel === "detailed"
-        ? result.fields
-        : result.overview?.fields,
-    hasMore: result.hasMore,
-    limit: result.limit,
-    matchedCount: result.matchedCount,
-    offset: result.offset,
-    returnedCount: result.returnedCount,
-    sample:
-      result.detailLevel === "detailed"
-        ? result.expenses?.slice(0, 3)
-        : result.overview?.items?.slice(0, 5),
-    summary: result.summary,
-  };
-}
-
 const SHELL_REVIEWER_TOOL_DESCRIPTION =
-  "Run bash commands in the review workspace. Available data and commands: /workspace/expenses.json, /workspace/policy.md, /workspace/users.json, /workspace/prior-cases.json, /workspace/calendar-events.json, get_expenses [expense-id...] [--limit N] [--offset N] [--overview|--detailed], analyze_receipt <expense-id...>, get_users <user-id...>, get_cases [user-id...], analyze_calendar_events <user-id...>, web_search [--query QUERY] or web_search --default, submit_review [--file /tmp/submission.json], python3. /workspace/expenses.json is a JSON array. Start with get_expenses --overview for compact rows, and keep stdout compact and machine-readable. Use python3, jq, or shell commands to perform your own triage instead of dumping the whole dataset.";
+  `Run bash commands in the review workspace. ${describeSpendAuditWorkbench()} ` +
+  "/workspace/expenses.json is a JSON array. Start with get_expenses --overview for compact rows, and keep stdout compact and machine-readable. Use python3, jq, or shell commands to perform your own triage instead of dumping the whole dataset.";
 
 const SHELL_REVIEWER_SYSTEM_INSTRUCTIONS =
   "You have one bash tool in a review workspace. Use /workspace/expenses.json, /workspace/policy.md, user/prior-case/calendar files or CLIs, analyze_receipt, submit_review, and python3. /workspace/expenses.json is a JSON array. Start with get_expenses --overview --limit 250 --offset 0 and paginate compact rows; use --detailed only for selected ids. Write your own filtering/grouping logic in bash or python3, but print only compact summaries or write intermediate artifacts to /tmp. web_search is available if public context would materially help. Run web_search and submit_review as their own standalone bash commands, not inside a larger script or compound command. Run submit_review /tmp/submission.json and use its stdout feedback to repair rejected submissions.";
@@ -2365,39 +2139,6 @@ function buildReviewerAgentPrompt({
   return lines.join("\n");
 }
 
-const reviewDecisionSchema = z.object({
-  evidence: z
-    .array(
-      z.object({
-        reference: z.string(),
-        summary: z.string(),
-        type: z.string().min(1),
-      }),
-    )
-    .default([]),
-  expenseIds: z.array(z.string()).min(1),
-  outcome: z.enum(["case", "no_case"]),
-  priority: z.enum(["low", "medium", "high", "critical"]).optional(),
-  reasoning: z.string(),
-  recommendedAction: z.string().optional(),
-  tags: z.array(z.string()).default([]),
-  title: z.string().optional(),
-});
-
-const companySpendSummarySchema = z.object({
-  amountAtIssueUsd: z.number().nonnegative(),
-  amountReviewedUsd: z.number().nonnegative(),
-  categoriesReviewed: z.array(z.string()),
-  notableSpendClusters: z.array(z.string()),
-  totalReviewed: z.number().int().nonnegative(),
-  unresolvedLimitations: z.array(z.string()),
-});
-
-const reviewOutputSchema = z.object({
-  companySpendSummary: companySpendSummarySchema,
-  decisions: z.array(reviewDecisionSchema),
-});
-
 function buildNativeReviewerTools({
   fixture,
   includeWebSearch,
@@ -2444,10 +2185,10 @@ function buildNativeReviewerTools({
         return recorder.span(
           "tool.get_expenses",
           { "tool.name": "get_expenses" },
-          async () => queryExpenses(fixture.expenses, input),
+          async () => queryCanonicalExpenses(fixture.expenses, input),
           {
             inputPreview: input,
-            outputPreview: summarizeExpenseQueryResult,
+            outputPreview: summarizeCanonicalExpenseQueryResult,
             spanType: "TOOL",
           },
         );
@@ -3201,7 +2942,7 @@ async function recordSubmitReview({
   submissionMode = "tool",
 }) {
   recorder.increment("submissionCalls");
-  const validation = validateSubmittedOutput({ fixture, output });
+  const validation = validateCanonicalSubmittedOutput({ fixture, output });
   const accepted =
     !loadError &&
     validation.schemaValid &&
@@ -3256,7 +2997,7 @@ function buildSubmitReviewTool({ fixture, recorder, state }) {
   return tool({
     description:
       "Submit the final company-spend audit decisions after the evidence-gathering tool loop is complete. This is the only accepted way for the native tool variant to finish the task. Submit direct {decisions, companySpendSummary}. The submission is accepted only when it covers every in-scope expense exactly through case or no_case decisions. Do not submit placeholder or test data.",
-    inputSchema: reviewOutputSchema,
+    inputSchema: canonicalReviewOutputSchema,
     execute: async (input) => {
       return recordSubmitReview({
         fixture,
@@ -3984,10 +3725,10 @@ async function runNativeMockEvidenceWork({
     await recorder.span(
       "tool.get_expenses",
       { "tool.name": "get_expenses" },
-      async () => queryExpenses(fixture.expenses, input),
+      async () => queryCanonicalExpenses(fixture.expenses, input),
       {
         inputPreview: input,
-        outputPreview: summarizeExpenseQueryResult,
+        outputPreview: summarizeCanonicalExpenseQueryResult,
         spanType: "TOOL",
       },
     );
@@ -4539,7 +4280,7 @@ function makeGetExpensesCommand(fixture) {
   return defineCommand("get_expenses", async (args) => {
     const { detailLevel, ids, limit, offset } =
       parseGetExpensesCommandArgs(args);
-    const result = queryExpenses(fixture.expenses, {
+    const result = queryCanonicalExpenses(fixture.expenses, {
       detailLevel,
       expenseIds: ids.length > 0 ? ids : undefined,
       limit,
@@ -4742,23 +4483,7 @@ async function runJustBashVariant({ fixture, options, recorder }) {
         },
         fs: new InMemoryFs({
           "/tmp/.keep": "",
-          "/workspace/expenses.json": JSON.stringify(fixture.expenses, null, 2),
-          "/workspace/calendar-events.json": JSON.stringify(
-            fixture.calendarEventsByUserId,
-            null,
-            2,
-          ),
-          "/workspace/prior-cases.json": JSON.stringify(
-            { cases: fixture.priorCases },
-            null,
-            2,
-          ),
-          "/workspace/policy.md": fixture.policy,
-          "/workspace/users.json": JSON.stringify(
-            { users: fixture.users },
-            null,
-            2,
-          ),
+          ...createSpendAuditWorkspace(fixture),
         }),
         python: true,
       });
@@ -5021,6 +4746,7 @@ async function runSandboxVariant({ fixture, options, recorder, runId }) {
         await runProcess("docker", ["exec", containerName, "bash", "-lc", ":"]);
         const warmStartMs = performance.now() - warmStartStarted;
         const prepStarted = performance.now();
+        const workspaceFiles = createSpendAuditWorkspace(fixture);
         await runDockerExec(
           recorder,
           containerName,
@@ -5038,7 +4764,7 @@ mkdir -p /workspace/scripts
 set -e
 cat > /workspace/expenses.json
 `,
-          `${JSON.stringify(fixture.expenses, null, 2)}\n`,
+          workspaceFiles["/workspace/expenses.json"],
         );
         await runDockerExec(
           recorder,
@@ -5058,7 +4784,7 @@ cat > /tmp/receipts.json
 set -e
 cat > /workspace/users.json
 `,
-          `${JSON.stringify({ users: fixture.users })}\n`,
+          workspaceFiles["/workspace/users.json"],
         );
         await runDockerExec(
           recorder,
@@ -5068,7 +4794,7 @@ cat > /workspace/users.json
 set -e
 cat > /workspace/prior-cases.json
 `,
-          `${JSON.stringify({ cases: fixture.priorCases })}\n`,
+          workspaceFiles["/workspace/prior-cases.json"],
         );
         await runDockerExec(
           recorder,
@@ -5078,7 +4804,7 @@ cat > /workspace/prior-cases.json
 set -e
 cat > /workspace/calendar-events.json
 `,
-          `${JSON.stringify(fixture.calendarEventsByUserId)}\n`,
+          workspaceFiles["/workspace/calendar-events.json"],
         );
         await runDockerExec(
           recorder,
@@ -5088,7 +4814,7 @@ cat > /workspace/calendar-events.json
 set -e
 cat > /workspace/policy.md
 `,
-          fixture.policy,
+          workspaceFiles["/workspace/policy.md"],
         );
         await runDockerExec(
           recorder,
@@ -5535,7 +5261,7 @@ async function runVariant({
       result.output,
       fixture.expectedReview,
     );
-    result.outputValidation = validateSubmittedOutput({
+    result.outputValidation = validateCanonicalSubmittedOutput({
       fixture,
       output: result.output,
     });
@@ -5600,7 +5326,7 @@ async function runVariant({
         : assessRunQuality({
             outputValidation:
               result?.outputValidation ??
-              validateSubmittedOutput({
+              validateCanonicalSubmittedOutput({
                 fixture,
                 output: result?.output,
               }),
@@ -5834,85 +5560,6 @@ function scoreReviewOutput(output, expectedReview) {
     },
     predictedCandidateCount: predictedCandidates.length,
     predictedExpenseIdCount: predictedExpenseIds.length,
-  };
-}
-
-function collectDecisionExpenseIds(output) {
-  return sortedUnique(
-    Array.isArray(output?.decisions)
-      ? output.decisions.flatMap((decision) => decision.expenseIds ?? [])
-      : Array.isArray(output?.candidates)
-        ? output.candidates.flatMap((candidate) => candidate.expenseIds ?? [])
-        : [],
-  );
-}
-
-function collectAllDecisionExpenseIds(output) {
-  return Array.isArray(output?.decisions)
-    ? output.decisions.flatMap((decision) => decision.expenseIds ?? [])
-    : Array.isArray(output?.candidates)
-      ? output.candidates.flatMap((candidate) => candidate.expenseIds ?? [])
-      : [];
-}
-
-function validateSubmittedOutput({ fixture, output }) {
-  const schemaResult = reviewOutputSchema.safeParse(output);
-  const validExpenseIds = new Set(
-    fixture.expenses.map((expense) => expense.expenseId),
-  );
-  const allSubmittedExpenseIds = collectAllDecisionExpenseIds(output);
-  const submittedExpenseIds = collectDecisionExpenseIds(output);
-  const seenExpenseIds = new Set();
-  const duplicateExpenseIds = [];
-  for (const expenseId of allSubmittedExpenseIds) {
-    if (seenExpenseIds.has(expenseId)) {
-      duplicateExpenseIds.push(expenseId);
-    }
-    seenExpenseIds.add(expenseId);
-  }
-  const invalidExpenseIds = submittedExpenseIds.filter(
-    (expenseId) => !validExpenseIds.has(expenseId),
-  );
-  const missingExpenseIds = fixture.expenses
-    .map((expense) => expense.expenseId)
-    .filter((expenseId) => !submittedExpenseIds.includes(expenseId));
-  const coveredExpenseCount = submittedExpenseIds.filter((expenseId) =>
-    validExpenseIds.has(expenseId),
-  ).length;
-  const caseDecisionCount = Array.isArray(output?.decisions)
-    ? output.decisions.filter((decision) => decision.outcome === "case").length
-    : Array.isArray(output?.candidates)
-      ? output.candidates.length
-      : 0;
-  const exactlyOnceCovered =
-    coveredExpenseCount === fixture.expenses.length &&
-    allSubmittedExpenseIds.length === fixture.expenses.length &&
-    duplicateExpenseIds.length === 0;
-  return {
-    caseDecisionCount,
-    coveredExpenseCount,
-    duplicateExpenseIds: [...new Set(duplicateExpenseIds)].slice(0, 20),
-    exactlyOnceCovered,
-    fullBatchCovered: coveredExpenseCount === fixture.expenses.length,
-    invalidExpenseIds: invalidExpenseIds.slice(0, 20),
-    missingExpenseIdCount: missingExpenseIds.length,
-    missingExpenseIds: missingExpenseIds.slice(
-      0,
-      SUBMISSION_REPAIR_ID_SAMPLE_LIMIT,
-    ),
-    schemaErrors: schemaResult.success
-      ? []
-      : schemaResult.error.issues
-          .map((issue) => {
-            const issuePath =
-              issue.path.length > 0 ? issue.path.join(".") : "$";
-            return `${issuePath}: ${issue.message}`;
-          })
-          .slice(0, 12),
-    schemaValid: schemaResult.success,
-    submittedExpenseIdCount: submittedExpenseIds.length,
-    totalExpenseCount: fixture.expenses.length,
-    validExpenseIds: invalidExpenseIds.length === 0,
   };
 }
 
@@ -6762,7 +6409,9 @@ function compactTraceSummary(result) {
 }
 
 function buildJudgePacket({ fixture, options, result, runId }) {
-  const submittedExpenseIds = new Set(collectDecisionExpenseIds(result.output));
+  const submittedExpenseIds = new Set(
+    collectCanonicalDecisionExpenseIds(result.output),
+  );
   const caseExpenseIds = new Set(
     Array.isArray(result.output?.decisions)
       ? result.output.decisions

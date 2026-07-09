@@ -159,10 +159,11 @@ through the same submission contract and receive the same validation feedback.
 ## Dataset
 
 The dataset is generated inside the benchmark repo so the benchmark remains
-shareable. It is derived from anonymized note material and expanded into a
-synthetic weekly workload with real merchant names, anonymized users, synthetic
-expense ids, synthetic prior cases, synthetic calendar events, and text-only
-receipts.
+shareable. The default source is a committed, sanitized CSV seed fixture. It is
+expanded into a synthetic weekly workload with real merchant names, anonymized
+users, synthetic expense ids, synthetic prior cases, synthetic calendar events,
+and text-only receipts. A local `--source-dir` override is allowed for
+experiments, but it is not required to reproduce the default workload.
 
 The dataset includes both ordinary spend and company-spend patterns that matter
 in audit workflows:

@@ -1,0 +1,13 @@
+case_id,summary,amount,themes
+seed_001,expense_a01 United Airlines airfare for customer onsite,482.20,travel
+seed_002,expense_a02 Marriott hotel lodging during customer visit,348.00,lodging
+seed_003,expense_a03 client dinner with receipt and attendees,186.50,meals
+seed_004,expense_a04 OpenAI software subscription invoice,240.00,software
+seed_005,expense_a05 Uber rideshare between airport and office,42.80,travel
+seed_006,expense_a06 office supplies purchased from Staples,96.10,procurement
+seed_007,expense_a07 gift card stored value request,180.00,cash-equivalent
+seed_008,expense_a08 reimbursement meal missing receipt,75.00,receipt
+seed_009,expense_a09 GitHub software subscription renewal,480.00,software
+seed_010,expense_a10 hotel reimbursement for business travel,290.00,lodging
+seed_011,expense_a11 team lunch with manager approval,132.00,meals
+seed_012,expense_a12 Venmo cash equivalent transfer,125.00,cash-equivalent

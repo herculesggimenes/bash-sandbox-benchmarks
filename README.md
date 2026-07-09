@@ -20,6 +20,12 @@ This repo is intentionally small so other people can rerun the numbers.
 All `just-bash` benchmarks in this repo use `Bash` on `InMemoryFs` only. They
 do not mount or write the local host filesystem.
 
+The committed `fixtures/spend-audit/seed.csv` is the default source for the
+company-spend audit workload. It contains synthetic, sanitized seeds only, so a
+clean clone can run the mock benchmark without a private data directory. Pass
+`--source-dir /path/to/csvs` only to evaluate a separately prepared local seed
+set; the report records that source path as metadata.
+
 For the experimental design, controls, metrics, and invalidation rules, see
 [docs/methodology.md](docs/methodology.md).
 
@@ -44,11 +50,9 @@ pnpm benchmark:smoke
 
 ## Company Spend Audit Benchmark
 
-This benchmark uses the audit-agent company-spend review shape from
-`/Users/hgimenes/src/brex/domains/audit-agents-new`, but keeps this repo
-self-contained and shareable. It derives an anonymized weekly expense fixture
-from `/Users/hgimenes/Documents/Notes/Automations/audit-case-analysis`, expands
-it to a larger weekly workload, and runs the same reviewer through:
+This benchmark uses the audit-agent company-spend review shape, but keeps the
+repo self-contained and shareable. It expands committed sanitized source seeds
+into a larger synthetic weekly workload and runs the same reviewer through:
 
 - `tool`: native `get_expenses`, `get_policy`, `get_users`, `get_cases`, `analyze_calendar_events`, `analyze_receipt`, `web_search`, and `submit_review` calls. `get_expenses` has two levels of detail: `overview` for compact full-batch scanning and `detailed` for selected records with all fields. The web tool uses the same harness shape as `audit-agents-new`: Gemini via Vertex, `enterprise_web_search`, and `url_context`.
 - `tool-compaction`: the same native-tool interface, plus an AI SDK `prepareStep`
@@ -109,6 +113,13 @@ Smoke test without spending LLM tokens:
 ```bash
 pnpm benchmark:spend-audit -- --runs 1 --variants tool,tool-compaction,just-bash,sandbox \
   --max-expenses 1000 --mock-llm --export-judge-packets
+```
+
+The `tool` and `just-bash` variants need no Docker daemon, so this is the
+clean-clone smoke command:
+
+```bash
+pnpm benchmark:spend-audit:smoke
 ```
 
 Live LLM Gateway run:

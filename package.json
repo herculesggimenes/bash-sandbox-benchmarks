@@ -8,6 +8,7 @@
     "analyze:fraud-review": "node scripts/analyze-fraud-review-results.mjs",
     "analyze:spend-audit": "node scripts/analyze-fraud-review-results.mjs",
     "benchmark:spend-audit": "node --expose-gc scripts/benchmark-expense-review-agent.mjs",
+    "benchmark:spend-audit:smoke": "node --expose-gc scripts/benchmark-expense-review-agent.mjs --runs 1 --variants tool,just-bash --max-expenses 10 --mock-llm",
     "benchmark:spend-audit:matrix": "node scripts/run-spend-audit-matrix.mjs",
     "benchmark:fraud-review": "node --expose-gc scripts/benchmark-expense-review-agent.mjs",
     "benchmark:expense-review": "node --expose-gc scripts/benchmark-expense-review-agent.mjs",
